@@ -1,0 +1,51 @@
+name: Generate Game AAB
+
+on:
+  workflow_dispatch: # इससे आप बटन दबाकर मैन्युअली रन कर सकेंगे
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Unzip Project Code
+      run: |
+        unzip word-garden.zip -d project_extracted
+        if [ -d "project_extracted/android" ]; then
+          mv project_extracted/* .
+        elif [ -f "project_extracted/build.gradle" ] || [ -f "project_extracted/build.gradle.kts" ]; then
+          mv project_extracted/* .
+        else
+          mv project_extracted/*/* . 2>/dev/null || true
+        fi
+
+    - name: Grant execute permission for gradlew
+      run: |
+        chmod +x gradlew 2>/dev/null || true
+        chmod +x android/gradlew 2>/dev/null || true
+
+    - name: Build Android App Bundle (AAB)
+      run: |
+        if [ -f "./gradlew" ]; then
+          ./gradlew bundleRelease
+        elif [ -f "./android/gradlew" ]; then
+          cd android && ./gradlew bundleRelease
+        else
+          echo "Gradle wrapper not found!" && exit 1
+        fi
+
+    - name: Upload AAB Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Word-Garden-Game-AAB
+        path: |
+          **/build/outputs/bundle/release/*.aab
+          app/build/outputs/bundle/release/*.aab
